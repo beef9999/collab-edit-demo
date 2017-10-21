@@ -8,47 +8,50 @@ import tornado.httpserver
 import config
 
 
-class Server(object):
+class Room(object):
     def __init__(self):
         self.content = ''  # 服务器保存内容
         self.users_content = {}  # key: 用户ID, value: 用户看到的内容
         self.dmp = diff_match_patch_py3.diff_match_patch()
 
-    def update(self, uid, diff):
+    def update(self, uid, patch):
         if uid not in self.users_content:
             self.users_content[uid] = ''
-        if diff is not None:
+        if patch is not None:
+            patch = self.dmp.patch_fromText(patch)
             user_content = self.users_content[uid]
-            self.content = self.diff_apply_to_string(diff, self.content)  # 更新服务器内容
-            new_diff = self.generate_diff(user_content, self.content)  # 比较服务器与用户内容差异
+            self.content = self.apply_patch(patch, self.content)  # 更新服务器内容
+            new_patch = self.generate_patch(user_content, self.content)  # 比较服务器与用户内容差异
         else:
-            new_diff = self.generate_diff('', self.content)
+            new_patch = self.generate_patch('', self.content)
         self.users_content[uid] = self.content  # 用户内容更新
         print('content', self.content)
 
-        return new_diff  # 返回最新的差异
+        return self.dmp.patch_toText(new_patch)  # 返回差异patch
 
-    def diff_apply_to_string(self, diff, string):
-        p = self.dmp.patch_make(string, diff)
-        x = self.dmp.patch_apply(p, string)
-        return x[0]
+    def apply_patch(self, patch, string):
+        x = self.dmp.patch_apply(patch, string)
+        return x[0]     # 返回新字符串
 
-    def generate_diff(self, string1, string2):
-        return self.dmp.diff_main(string1, string2)
+    def generate_patch(self, string1, string2):
+        diff = self.dmp.diff_main(string1, string2)
+        patch = self.dmp.patch_make(string1, diff)
+        print('---------patch ----- : \n', patch[0] if patch else patch)
+        return patch
 
 
 class Handler(tornado.web.RequestHandler):
     def post(self, *args, **kwargs):
         try:
-            body = json.loads(self.request.body)
+            body = json.loads(self.request.body.decode('utf-8'))
             if 'uid' not in body:
                 raise
-            if 'diff' not in body:
+            if 'patch' not in body:
                 raise
         except Exception as e:
             raise tornado.web.HTTPError(400, 'Invalid params: %s' % e)
         server = get_server()
-        diff = server.update(body['uid'], body['diff'])
+        diff = server.update(body['uid'], body['patch'])
         self.write(json.dumps(diff))
 
     def get(self, *args, **kwargs):
@@ -59,14 +62,15 @@ class MainPage(tornado.web.RequestHandler):
     def get(self, *args, **kwargs):
         self.render("main.html")
 
-_server = None
+
+_room = None
 
 
 def get_server():
-    global _server
-    if _server is None:
-        _server = Server()
-    return _server
+    global _room
+    if _room is None:
+        _room = Room()
+    return _room
 
 
 def make_app():
