@@ -26,8 +26,6 @@ class Room(object):
         else:
             new_patch = self.generate_patch('', self.content)
         self.users_content[uid] = self.content  # 用户内容更新
-        print('content', self.content)
-
         return self.dmp.patch_toText(new_patch)  # 返回差异patch
 
     def apply_patch(self, patch, string):
@@ -37,7 +35,6 @@ class Room(object):
     def generate_patch(self, string1, string2):
         diff = self.dmp.diff_main(string1, string2)
         patch = self.dmp.patch_make(string1, diff)
-        print('---------patch ----- : ', patch[0] if patch else patch)
         return patch
 
 
@@ -84,9 +81,6 @@ class WebSocket(tornado.websocket.WebSocketHandler):
     def on_close(self):
         print("WebSocket closed")
 
-    # def check_origin(self, origin):
-    #     return True
-
 
 _room = None
 
@@ -101,13 +95,13 @@ def get_server():
 def make_app():
     return tornado.web.Application(
         [
-            (r"/main", MainPage),
+            (r"/", MainPage),
             (r"/websocket", WebSocket),
             (r"/update", UpdatePatchHandler),
         ],
         template_path=config.TEMPLATE_FILE_PATH,
         static_path=config.STATIC_FILE_PATH,
-        cookie_secret="xxxxxxx",
+        cookie_secret="x",
         xsrf_cookies=False,
         autoreload=True,
         debug=False
