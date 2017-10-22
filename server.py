@@ -4,6 +4,7 @@ import json
 import diff_match_patch_py3
 import tornado.ioloop
 import tornado.web
+import tornado.websocket
 import tornado.httpserver
 import config
 
@@ -31,16 +32,16 @@ class Room(object):
 
     def apply_patch(self, patch, string):
         x = self.dmp.patch_apply(patch, string)
-        return x[0]     # 返回新字符串
+        return x[0]  # 返回新字符串
 
     def generate_patch(self, string1, string2):
         diff = self.dmp.diff_main(string1, string2)
         patch = self.dmp.patch_make(string1, diff)
-        print('---------patch ----- : \n', patch[0] if patch else patch)
+        print('---------patch ----- : ', patch[0] if patch else patch)
         return patch
 
 
-class Handler(tornado.web.RequestHandler):
+class UpdatePatchHandler(tornado.web.RequestHandler):
     def post(self, *args, **kwargs):
         try:
             body = json.loads(self.request.body.decode('utf-8'))
@@ -51,8 +52,8 @@ class Handler(tornado.web.RequestHandler):
         except Exception as e:
             raise tornado.web.HTTPError(400, 'Invalid params: %s' % e)
         server = get_server()
-        diff = server.update(body['uid'], body['patch'])
-        self.write(json.dumps(diff))
+        patch = server.update(body['uid'], body['patch'])
+        self.write(json.dumps(patch))
 
     def get(self, *args, **kwargs):
         self.write(get_server().content)
@@ -61,6 +62,30 @@ class Handler(tornado.web.RequestHandler):
 class MainPage(tornado.web.RequestHandler):
     def get(self, *args, **kwargs):
         self.render("main.html")
+
+
+class WebSocket(tornado.websocket.WebSocketHandler):
+    def open(self):
+        print("WebSocket opened")
+
+    def on_message(self, message):
+        try:
+            body = json.loads(message)
+            if 'uid' not in body:
+                raise
+            if 'patch' not in body:
+                raise
+        except Exception as e:
+            raise tornado.web.HTTPError(400, 'Invalid params: %s' % e)
+        server = get_server()
+        patch = server.update(body['uid'], body['patch'])
+        self.write_message(json.dumps(patch))
+
+    def on_close(self):
+        print("WebSocket closed")
+
+    # def check_origin(self, origin):
+    #     return True
 
 
 _room = None
@@ -77,12 +102,14 @@ def make_app():
     return tornado.web.Application(
         [
             (r"/main", MainPage),
-            (r"/.+", Handler),
+            (r"/websocket", WebSocket),
+            (r"/update", UpdatePatchHandler),
         ],
         template_path=config.TEMPLATE_FILE_PATH,
         static_path=config.STATIC_FILE_PATH,
         cookie_secret="xxxxxxx",
         xsrf_cookies=False,
+        autoreload=True,
         debug=False
     )
 
