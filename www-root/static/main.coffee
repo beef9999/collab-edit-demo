@@ -1,6 +1,6 @@
-ws = new WebSocket('wss://43.241.216.214/websocket')
-last = ''
+content = ''
 user_id = ''
+ws = new WebSocket('wss://43.241.216.214/websocket')
 dmp = new diff_match_patch
 
 
@@ -28,7 +28,7 @@ update_patch = (patch, succ_callback) ->
         succ_callback(patch)
 
     update_fail = (jqXHR, textStatus, errorThrown) ->
-        console.error("服务器错误: #{textStatus}")
+        console.error("Server error: #{textStatus}")
 
     $.ajax '/update',
         type: 'POST'
@@ -38,15 +38,15 @@ update_patch = (patch, succ_callback) ->
 
 
 update_patch_succ_callback = (patch) ->
-    last = apply_patch(patch, "")
-    $("#text1").val(last)
+    content = apply_patch(patch, "")
+    $("#text1").val(content)
     window.setInterval(loop_forever, 500)
 
 
 loop_forever = ->
     $("#text1").attr("readonly", true)
     text1 = $("#text1").val()
-    patch = generate_patch(last, text1)
+    patch = generate_patch(content, text1)
     patch_str = dmp.patch_toText(patch)
     data = JSON.stringify(
         uid: user_id
@@ -59,8 +59,8 @@ websocket_on_message = (evt) ->
     resp = evt.data
     patch_str = JSON.parse(resp)
     patch = dmp.patch_fromText(patch_str)
-    last = apply_patch(patch, last)
-    $("#text1").val(last)
+    content = apply_patch(patch, content)
+    $("#text1").val(content)
     $("#text1").attr("readonly", false)
 
 
