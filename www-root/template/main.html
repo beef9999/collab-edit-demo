@@ -6,20 +6,17 @@
     <SCRIPT TYPE="text/javascript" LANGUAGE="JavaScript"
             SRC="{{ static_url('diff_match_patch_uncompressed.js') }}"></SCRIPT>
     <script TYPE="text/javascript" LANGUAGE="JavaScript" SRC="{{ static_url('uuid.js') }}"></script>
+    <link rel="stylesheet" href="{{ static_url('highlight/default.min.css') }}">
+    <script src="{{ static_url('highlight/highlight.min.js') }}"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
+    <script src="{{ static_url('div_cursor.js') }}"></script>
 </HEAD>
 
 <BODY>
 
-
-<FORM action="#" onsubmit="return false">
-    <TEXTAREA ID="text1" STYLE="width: 100%" ROWS=10></TEXTAREA>
-
-
-    <!--<P><INPUT TYPE="button" onClick="launch()" VALUE="Compute Diff"></P>-->
-
-</FORM>
-
-<DIV ID="outputdiv"></DIV>
+<pre><code class="python">
+    <DIV ID="text2" contenteditable="true" STYLE="width: 800px; height: 600px"></DIV>
+</code></pre>
 
 <script src="{{ static_url('main.js') }}"></script>
 

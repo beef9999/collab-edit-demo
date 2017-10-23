@@ -39,14 +39,15 @@ update_patch = (patch, succ_callback) ->
 
 update_patch_succ_callback = (patch) ->
     content = apply_patch(patch, "")
-    $("#text1").val(content)
+    hl_content = hljs.highlight("python", content)
+    $("#text2").html(hl_content.value)
     window.setInterval(loop_forever, 500)
 
 
 loop_forever = ->
-    $("#text1").attr("readonly", true)
-    text1 = $("#text1").val()
-    patch = generate_patch(content, text1)
+    $("#text2").attr("readonly", true)
+    text2 = $("#text2").text()
+    patch = generate_patch(content, text2)
     patch_str = dmp.patch_toText(patch)
     data = JSON.stringify(
         uid: user_id
@@ -60,8 +61,9 @@ websocket_on_message = (evt) ->
     patch_str = JSON.parse(resp)
     patch = dmp.patch_fromText(patch_str)
     content = apply_patch(patch, content)
-    $("#text1").val(content)
-    $("#text1").attr("readonly", false)
+    hl_content = hljs.highlight("python", content)
+    $("#text2").html(hl_content.value)
+    $("#text2").attr("readonly", false)
 
 
 init = ->
