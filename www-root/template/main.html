@@ -6,19 +6,24 @@
     <SCRIPT TYPE="text/javascript" LANGUAGE="JavaScript"
             SRC="{{ static_url('diff_match_patch_uncompressed.js') }}"></SCRIPT>
     <script TYPE="text/javascript" LANGUAGE="JavaScript" SRC="{{ static_url('uuid.js') }}"></script>
-    <link rel="stylesheet" href="{{ static_url('highlight/default.min.css') }}">
-    <script src="{{ static_url('highlight/highlight.min.js') }}"></script>
-    <script>hljs.initHighlightingOnLoad();</script>
-    <script src="{{ static_url('div_cursor.js') }}"></script>
-</HEAD>
 
+    <style type="text/css" media="screen">
+        #collab_editor {
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+        }
+    </style>
+
+</HEAD>
 <BODY>
 
-<pre><code class="python">
-    <DIV ID="text2" contenteditable="true" STYLE="width: 800px; height: 600px"></DIV>
-</code></pre>
+<div id="collab_editor"></div>
 
-<script src="{{ static_url('main.js') }}"></script>
+<script src="{{ static_url('ace/src-min-noconflict/ace.js') }}" type="text/javascript" charset="utf-8"></script>
+<script src="{{ static_url('main.js') }}" type="text/javascript" charset="utf-8"></script>
 
 </BODY>
 </HTML>

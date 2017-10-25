@@ -1,5 +1,12 @@
+editor = ace.edit("collab_editor")
+editor.setTheme("ace/theme/monokai")
+editor.setPrintMarginColumn(120)
+editor.$blockScrolling = Infinity;
+editor.getSession().setMode("ace/mode/python")
+
 content = ''
 user_id = ''
+cursor = null
 ws = new WebSocket('wss://43.241.216.214/websocket')
 dmp = new diff_match_patch
 
@@ -39,15 +46,15 @@ update_patch = (patch, succ_callback) ->
 
 update_patch_succ_callback = (patch) ->
     content = apply_patch(patch, "")
-    hl_content = hljs.highlight("python", content)
-    $("#text2").html(hl_content.value)
+    editor.setValue(content)
     window.setInterval(loop_forever, 500)
 
 
 loop_forever = ->
-    $("#text2").attr("readonly", true)
-    text2 = $("#text2").text()
-    patch = generate_patch(content, text2)
+    editor.setReadOnly(true);
+    new_content = editor.getValue()
+    cursor = editor.getCursorPosition()
+    patch = generate_patch(content, new_content)
     patch_str = dmp.patch_toText(patch)
     data = JSON.stringify(
         uid: user_id
@@ -61,9 +68,9 @@ websocket_on_message = (evt) ->
     patch_str = JSON.parse(resp)
     patch = dmp.patch_fromText(patch_str)
     content = apply_patch(patch, content)
-    hl_content = hljs.highlight("python", content)
-    $("#text2").html(hl_content.value)
-    $("#text2").attr("readonly", false)
+    editor.setValue(content)
+    editor.navigateTo(cursor.row, cursor.column)
+    editor.setReadOnly(false);
 
 
 init = ->
@@ -74,6 +81,4 @@ init = ->
 $(document).ready ->
     ws.onmessage = websocket_on_message
     ws.onopen = init
-
-
 
