@@ -7,7 +7,7 @@ editor.getSession().setMode("ace/mode/python")
 content = ''
 user_id = ''
 cursor = null
-ws = new WebSocket('wss://43.241.216.214/websocket')
+ws = new WebSocket('wss://43.241.216.214/api/websocket')
 dmp = new diff_match_patch
 
 
@@ -37,7 +37,7 @@ update_patch = (patch, succ_callback) ->
     update_fail = (jqXHR, textStatus, errorThrown) ->
         console.error("Server error: #{textStatus}")
 
-    $.ajax '/update',
+    $.ajax '/api/update',
         type: 'POST'
         data: data
         error: update_fail

@@ -24,13 +24,13 @@ def do_request(uid, patch):
     if patch is not None:
         patch = dmp.patch_toText(patch)
     data = {'uid': uid, 'patch': patch}
-    r = requests.post('http://localhost:%d/update' % config.PORT, data=json.dumps(data))
+    r = requests.post('http://localhost:%d/api/update' % config.PORT, data=json.dumps(data))
     new_patch = json.loads(r.text)
     return dmp.patch_fromText(new_patch)
 
 
 def get_latest():
-    r = requests.get('http://localhost:%d/latest' % config.PORT)
+    r = requests.get('http://localhost:%d/api/latest' % config.PORT)
     return r.text
 
 

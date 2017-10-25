@@ -38,7 +38,7 @@ class Room(object):
         return patch
 
 
-class UpdatePatchHandler(tornado.web.RequestHandler):
+class PatchUpdater(tornado.web.RequestHandler):
     def post(self, *args, **kwargs):
         try:
             body = json.loads(self.request.body.decode('utf-8'))
@@ -59,6 +59,11 @@ class UpdatePatchHandler(tornado.web.RequestHandler):
 class MainPage(tornado.web.RequestHandler):
     def get(self, *args, **kwargs):
         self.render("main.html")
+
+
+class RoomPage(tornado.web.RequestHandler):
+    def get(self, *args, **kwargs):
+        self.write('room')
 
 
 class WebSocket(tornado.websocket.WebSocketHandler):
@@ -96,14 +101,15 @@ def make_app():
     return tornado.web.Application(
         [
             (r"/", MainPage),
-            (r"/websocket", WebSocket),
-            (r"/update", UpdatePatchHandler),
+            (r"/api/websocket", WebSocket),
+            (r"/api/update", PatchUpdater),
+            (r'/()([\?/].*)?', RoomPage),
         ],
         template_path=config.TEMPLATE_FILE_PATH,
         static_path=config.STATIC_FILE_PATH,
         cookie_secret="x",
         xsrf_cookies=False,
-        autoreload=True,
+        autoreload=False,
         debug=False
     )
 
