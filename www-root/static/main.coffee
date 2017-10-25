@@ -5,7 +5,8 @@ editor.$blockScrolling = Infinity;
 editor.getSession().setMode("ace/mode/python")
 
 content = ''
-user_id = ''
+user_id = $("#user_id").text()
+room = $("#room").text()
 cursor = null
 ws = new WebSocket('wss://43.241.216.214/api/websocket')
 dmp = new diff_match_patch
@@ -28,6 +29,7 @@ update_patch = (patch, succ_callback) ->
     data = JSON.stringify(
         uid: user_id
         patch: patch
+        room: room
     )
     update_succ = (resp, textStatus, jqXHR) ->
         patch_str = JSON.parse(resp)
@@ -47,6 +49,7 @@ update_patch = (patch, succ_callback) ->
 update_patch_succ_callback = (patch) ->
     content = apply_patch(patch, "")
     editor.setValue(content)
+    editor.navigateTo(0, 0)
     window.setInterval(loop_forever, 500)
 
 
@@ -59,6 +62,7 @@ loop_forever = ->
     data = JSON.stringify(
         uid: user_id
         patch: patch_str
+        room: room
     )
     ws.send(data)
 
@@ -74,7 +78,6 @@ websocket_on_message = (evt) ->
 
 
 init = ->
-    user_id = UUID.generate()
     update_patch(null, update_patch_succ_callback)
 
 
