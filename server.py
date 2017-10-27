@@ -2,6 +2,7 @@
 # coding=utf-8
 import json
 import uuid
+import time
 import diff_match_patch_py3
 import tornado.ioloop
 import tornado.web
@@ -19,6 +20,15 @@ _rooms = {}
 _room_lock = threading.Lock()
 
 
+class User(object):
+    def __init__(self, user_id, conn_id):
+        self.user_id = user_id
+        self.conn_id = conn_id
+
+    def __str__(self):
+        return 'USER: id -> %s, conn: %s' % (self.user_id, self.conn_id)
+
+
 class Room(object):
     def __init__(self, name):
         self.name = name
@@ -26,6 +36,11 @@ class Room(object):
         self.users_content = {}  # key: 用户UUID, value: 用户看到的内容
         self.dmp = diff_match_patch_py3.diff_match_patch()
         self.users = []  # 一个浏览器窗口算作一个user
+
+    def __str__(self):
+        users_desc = [str(user) for user in self.users]
+        return 'ROOM: %s\ncontent: %s\nusers_content: %s\nusers: %s' % (
+            self.name, self.content, self.users_content, str(users_desc))
 
     def update(self, uid, patch):
         if uid not in self.users_content:
@@ -101,31 +116,65 @@ class RoomPage(tornado.web.RequestHandler):
         if room is None:
             raise tornado.web.HTTPError(404, 'Room not exists')
         user_id = str(uuid.uuid4())
-        room.users.append(user_id)
         self.render('main.html', user_id=user_id, room=room_name)
 
 
+# The WebSocket Protocol - https://tools.ietf.org/html/rfc6455
 class WebSocket(tornado.websocket.WebSocketHandler):
     def open(self):
         print("WebSocket opened")
 
     def on_message(self, message):
-        try:
-            body = json.loads(message)
-            input_uid = body.get('uid')
-            input_patch = body.get('patch')
-            input_room = body.get('room')
-            if not input_uid or not input_room:
-                raise Exception(str(body))
-        except Exception as e:
-            raise tornado.web.HTTPError(400, 'Invalid params: %s' % e)
+        if message.startswith('----handshake----\n'):
+            handshake_data = json.loads(message.split('\n')[1])
+            room = get_room(handshake_data['room'])     # room should have been created
+            user_id = handshake_data['user_id']
+            user_obj = User(user_id, hash(self))
+            room.users.append(user_obj)
+            self.write_message(message)
+        else:
+            try:
+                body = json.loads(message)
+                input_uid = body.get('uid')
+                input_patch = body.get('patch')
+                input_room = body.get('room')
+                if not input_uid or not input_room:
+                    raise Exception(str(body))
+            except Exception as e:
+                raise tornado.web.HTTPError(400, 'Invalid params: %s' % e)
 
-        room = get_room(input_room)
-        patch = room.update(input_uid, input_patch)
-        self.write_message(json.dumps(patch))
+            room = get_room(input_room)
+            patch = room.update(input_uid, input_patch)
+            self.write_message(json.dumps(patch))
+            # self.ping("123 ping".encode('utf-8'))
+            # print('----', self.ws_connection)
 
     def on_close(self):
         print("WebSocket closed")
+        room, index = find_user_by_connection(hash(self))
+        room.users.pop(index)
+        with _room_lock:
+            empty_room_key = None
+            for key, room in _rooms.items():
+                if len(room.users) == 0:
+                    empty_room_key = key
+            if empty_room_key is not None:
+                _rooms.pop(empty_room_key)
+
+    def on_pong(self, data):
+        print('on pong', data)
+
+
+def find_user_by_connection(conn_id):
+    """
+    :param conn_id:
+    :return: user's room, index of the room's users list
+    """
+    with _room_lock:
+        for _, room in _rooms.items():
+            for index, user in enumerate(room.users):
+                if user.conn_id == conn_id:
+                    return room, index
 
 
 def get_room(name):
@@ -164,8 +213,20 @@ def make_app():
         cookie_secret="x",
         xsrf_cookies=False,
         autoreload=False,
-        debug=False
+        debug=False,
+        websocket_ping_interval=0,
     )
+
+
+def monitor_rooms():
+    def f():
+        while True:
+            time.sleep(3)
+            for _, room in _rooms.items():
+                print(room)
+    t = threading.Thread(target=f)
+    t.setDaemon(True)
+    t.start()
 
 
 if __name__ == "__main__":
@@ -173,4 +234,5 @@ if __name__ == "__main__":
     srv = tornado.httpserver.HTTPServer(app, xheaders=True)
     srv.bind(config.PORT)
     srv.start()
+    monitor_rooms()
     tornado.ioloop.IOLoop.instance().start()

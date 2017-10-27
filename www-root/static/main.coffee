@@ -10,6 +10,7 @@ room = $("#room").text()
 cursor = null
 ws = new WebSocket('wss://43.241.216.214/api/websocket')
 dmp = new diff_match_patch
+user_registed = false
 
 
 apply_patch = (patch, str) ->
@@ -69,16 +70,31 @@ loop_forever = ->
 
 websocket_on_message = (evt) ->
     resp = evt.data
-    patch_str = JSON.parse(resp)
-    patch = dmp.patch_fromText(patch_str)
-    content = apply_patch(patch, content)
-    editor.setValue(content)
-    editor.navigateTo(cursor.row, cursor.column)
-    editor.setReadOnly(false);
+    if not user_registed
+        if resp.startsWith('----handshake----\n')
+            resp_data = JSON.parse(resp.split('\n')[1])
+            resp_user_id = resp_data['user_id']
+            resp_room = resp_data['room']
+            if resp_user_id == user_id and resp_room == room
+                user_registed = true
+                update_patch(null, update_patch_succ_callback)
+            else
+                window.alert('Server error')
+    else
+        patch_str = JSON.parse(resp)
+        patch = dmp.patch_fromText(patch_str)
+        content = apply_patch(patch, content)
+        editor.setValue(content)
+        editor.navigateTo(cursor.row, cursor.column)
+        editor.setReadOnly(false)
 
 
 init = ->
-    update_patch(null, update_patch_succ_callback)
+    data = JSON.stringify(
+        user_id: user_id
+        room: room
+    )
+    ws.send('----handshake----\n' + data)
 
 
 $(document).ready ->
