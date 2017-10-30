@@ -1,8 +1,9 @@
 editor = ace.edit("collab_editor")
 editor.setTheme("ace/theme/monokai")
 editor.setPrintMarginColumn(120)
-editor.$blockScrolling = Infinity;
+editor.$blockScrolling = Infinity
 editor.getSession().setMode("ace/mode/python")
+
 
 content = ''
 user_id = $("#user_id").text()
@@ -51,11 +52,18 @@ update_patch_succ_callback = (patch) ->
     content = apply_patch(patch, "")
     editor.setValue(content)
     editor.navigateTo(0, 0)
-    window.setInterval(loop_forever, 500)
+    window.setInterval(loop_forever, 2000)
 
 
 loop_forever = ->
-    editor.setReadOnly(true);
+    editor.setReadOnly(true)
+    editor.getSession()
+    sel = editor.getSelection()
+    is_empty = sel.isEmpty()
+    if not is_empty
+        editor.setReadOnly(false)
+        return
+
     new_content = editor.getValue()
     cursor = editor.getCursorPosition()
     patch = generate_patch(content, new_content)
