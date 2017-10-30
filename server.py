@@ -221,7 +221,7 @@ def make_app():
 def monitor_rooms():
     def f():
         while True:
-            time.sleep(3)
+            time.sleep(120)
             for _, room in _rooms.items():
                 print(room)
     t = threading.Thread(target=f)

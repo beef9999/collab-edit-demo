@@ -8,7 +8,7 @@ content = ''
 user_id = $("#user_id").text()
 room = $("#room").text()
 cursor = null
-ws = new WebSocket('wss://43.241.216.214/api/websocket')
+ws = new WebSocket('wss://collabedit.pood.xyz/api/websocket')
 dmp = new diff_match_patch
 user_registed = false
 
