@@ -1,17 +1,18 @@
 editor = ace.edit("collab_editor")
 editor.setTheme("ace/theme/monokai")
 editor.setPrintMarginColumn(120)
-editor.$blockScrolling = Infinity
-editor.getSession().setMode("ace/mode/python")
+#editor.$blockScrolling = Infinity
+editSession = editor.getSession()
+editSession.setMode("ace/mode/python")
 
 
 content = ''
 user_id = $("#user_id").text()
 room = $("#room").text()
 cursor = null
-ws = new WebSocket('wss://collabedit.pood.xyz/api/websocket')
+ws = new WebSocket('wss://chat.pood.xyz/api/websocket')
 dmp = new diff_match_patch
-user_registed = false
+user_registered = false
 
 
 apply_patch = (patch, str) ->
@@ -50,9 +51,11 @@ update_patch = (patch, succ_callback) ->
 
 update_patch_succ_callback = (patch) ->
     content = apply_patch(patch, "")
-    editor.setValue(content)
-    editor.navigateTo(0, 0)
-    window.setInterval(loop_forever, 2000)
+    editSession.setValue(content)
+
+#    editor.setValue(content)
+#    editor.navigateTo(0, 0)
+#    window.setInterval(loop_forever, 2000)
 
 
 loop_forever = ->
@@ -65,6 +68,10 @@ loop_forever = ->
         return
 
     new_content = editor.getValue()
+    if new_content == content
+        cursor = editor.getCursorPosition()
+        editor.setReadOnly(false)
+        return
     cursor = editor.getCursorPosition()
     patch = generate_patch(content, new_content)
     patch_str = dmp.patch_toText(patch)
@@ -78,21 +85,26 @@ loop_forever = ->
 
 websocket_on_message = (evt) ->
     resp = evt.data
-    if not user_registed
+    console.log('user registered: ', user_registered, 'resp:', resp)
+    if not user_registered
         if resp.startsWith('----handshake----\n')
             resp_data = JSON.parse(resp.split('\n')[1])
             resp_user_id = resp_data['user_id']
             resp_room = resp_data['room']
             if resp_user_id == user_id and resp_room == room
-                user_registed = true
+                user_registered = true
                 update_patch(null, update_patch_succ_callback)
             else
                 window.alert('Server error')
     else
         patch_str = JSON.parse(resp)
         patch = dmp.patch_fromText(patch_str)
-        content = apply_patch(patch, content)
-        editor.setValue(content)
+        new_content = apply_patch(patch, content)
+        if new_content == content
+            editor.setReadOnly(false)
+            return
+        content = new_content
+        editor.setValue(new_content)
         editor.navigateTo(cursor.row, cursor.column)
         editor.setReadOnly(false)
 
@@ -102,6 +114,7 @@ init = ->
         user_id: user_id
         room: room
     )
+    console.log('----handshake----\n' + data)
     ws.send('----handshake----\n' + data)
 
 

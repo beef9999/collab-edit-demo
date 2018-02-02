@@ -12,6 +12,8 @@ import config
 import threading
 import string
 import random
+import logging
+import urllib
 
 
 ROOM_NAME_LENGTH = 4
@@ -125,6 +127,7 @@ class WebSocket(tornado.websocket.WebSocketHandler):
         print("WebSocket opened")
 
     def on_message(self, message):
+        logging.info('WebSocket opened, message sent:', message)
         if message.startswith('----handshake----\n'):
             handshake_data = json.loads(message.split('\n')[1])
             room = get_room(handshake_data['room'])     # room should have been created
@@ -163,6 +166,11 @@ class WebSocket(tornado.websocket.WebSocketHandler):
 
     def on_pong(self, data):
         print('on pong', data)
+
+    def check_origin(self, origin):
+        import urllib
+        parsed_origin = urllib.parse.urlparse(origin)
+        return parsed_origin.netloc.endswith(".pood.xyz")
 
 
 def find_user_by_connection(conn_id):
