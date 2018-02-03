@@ -16,6 +16,7 @@ ws = new WebSocket('wss://chat.pood.xyz/api/websocket')
 dmp = new diff_match_patch
 user_registered = false
 sync = false
+cursor = null
 
 
 apply_patch = (patch, str) ->
@@ -73,7 +74,9 @@ websocket_on_message = (evt) ->
 
         if new_content != content
             sync = true
+            cursor = editor.getCursorPosition()
             editSession.setValue(new_content)
+            editor.navigateTo(cursor.row, cursor.column)
             content = new_content
             sync = false
 

@@ -21,25 +21,15 @@ _rooms = {}
 _op_lock = threading.Lock()
 
 
-class User(object):
-    def __init__(self, user_id, socket):
-        self.user_id = user_id
-        self.socket = socket
-
-    def __str__(self):
-        return 'USER: id -> %s, socket: %s' % (self.user_id, self.socket)
-
-
 class Room(object):
     def __init__(self, name):
         self.name = name
         self.content = ''  # 服务器保存内容
         self.dmp = diff_match_patch_py3.diff_match_patch()
-        self.users = []  # 一个浏览器窗口算作一个user
+        self.users = {}  # 一个浏览器窗口算作一个user, key: user_id, value: websocket
 
     def __str__(self):
-        users_desc = [str(user) for user in self.users]
-        return 'ROOM: %s\ncontent: %s\nusers: %s' % (self.name, self.content, str(users_desc))
+        return 'ROOM: %s\ncontent: %s\nusers: %s' % (self.name, self.content, self.users)
 
     def apply_patch(self, patch, old_string):
         x = self.dmp.patch_apply(patch, old_string)
@@ -55,10 +45,10 @@ class Room(object):
         patch = self.dmp.patch_fromText(input_patch_text)
         self.content = self.apply_patch(patch, self.content)  # 更新服务器内容
 
-        for user in self.users:
-            if user.user_id == user_id:
+        for uid, websocket in self.users.items():
+            if uid == user_id:
                 continue
-            user.socket.write_message(json.dumps(input_patch_text))
+            websocket.write_message(json.dumps(input_patch_text))
 
 
 class WelcomePage(tornado.web.RequestHandler):
@@ -107,12 +97,10 @@ class WebSocket(tornado.websocket.WebSocketHandler):
         handshake_symbol = '----handshake----\n'
         if message.startswith(handshake_symbol):
             data = json.loads(message.split('\n')[1])
-            user = User(data['user_id'], self)
-
             room = _rooms.get(data['room'])  # room should have been created
 
             with _op_lock:
-                room.users.append(user)
+                room.users[data['user_id']] = self
                 data['content'] = room.content
 
             self.write_message(handshake_symbol + json.dumps(data))
@@ -131,10 +119,8 @@ class WebSocket(tornado.websocket.WebSocketHandler):
             room.broadcast(input_uid, input_patch_text)
 
     def on_close(self):
+        user_exit_room(self)
         print("WebSocket closed")
-
-    def on_pong(self, data):
-        print('on pong', data)
 
     def check_origin(self, origin):
         parsed_origin = urllib.parse.urlparse(origin)
@@ -149,6 +135,21 @@ def get_room(name):
 def room_exists(name):
     with _op_lock:
         return name in _rooms
+
+
+def user_exit_room(user_websocket):
+    target_room = None
+    target_uid = None
+    with _op_lock:
+        for _, room in _rooms.items():
+            if target_room is not None:
+                break
+            for uid, socket in room.users.items():
+                if socket == user_websocket:
+                    target_uid = uid
+                    target_room = room
+                    break
+        target_room.users.pop(target_uid)
 
 
 def find_free_room(also_create=True):
@@ -177,13 +178,15 @@ def make_app():
         xsrf_cookies=False,
         autoreload=False,
         debug=False,
+        websocket_ping_interval=10,
+        websocket_ping_timeout=60,
     )
 
 
 def monitor_rooms():
     def f():
         while True:
-            time.sleep(30)
+            time.sleep(20)
             for _, room in _rooms.items():
                 print(room)
 
